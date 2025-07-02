@@ -1,5 +1,14 @@
 def render_callback(env_renderer):
-    # custom extra drawing function
+    """
+    This function is a custom rendering helper for a car racing environment. 
+    It adjusts the camera and UI elements to follow the car during rendering.
+
+    - Extracts the car's vertices (positions).
+    - Calculates the bounding box (top, bottom, left, right) of the car.
+    - Moves the score label to just above the car.
+    - Adjusts the camera view (e.left, e.right, e.top, e.bottom) so 
+        the car stays centered, with a margin of 800 units on each side.
+    """
 
     e = env_renderer
 

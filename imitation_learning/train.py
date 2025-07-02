@@ -3,6 +3,7 @@ import gym
 import numpy as np
 import argparse
 import yaml
+import f110_gym
 
 from policies.agents.agent_mlp import AgentPolicyMLP
 from policies.experts.expert_waypoint_follower import ExpertWaypointFollower
@@ -12,20 +13,13 @@ import utils.env_utils as env_utils
 from bc import bc
 from dagger import dagger
 from hg_dagger import hg_dagger
-
-
-def process_parsed_args():
-    arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument('--algorithm', type=str, default='dagger', help='imitation learning algorithm to use')
-    arg_parser.add_argument('--training_config', type=str, required=True, help='the yaml file containing the training configuration')
-    return arg_parser.parse_args()
+    
 
 def initialization(il_config):
     seed = il_config['random_seed']
     # np.random.seed(seed)
     torch.manual_seed(seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 
     # Initialize the environment
     map_conf = None
@@ -39,28 +33,26 @@ def initialization(il_config):
             # If an environment is specified and random generation is off, use the specified environment
             with open(il_config['environment']['map_config_location']) as file:
                 map_conf_dict = yaml.load(file, Loader=yaml.FullLoader)
+        
+        # Convert the map configuration dictionary to an object with attribute-style access to its keys.
         map_conf = argparse.Namespace(**map_conf_dict)
 
-        import f110_gym
         env = gym.make('f110-v0', map=map_conf.map_path, map_ext=map_conf.map_ext, num_agents=1)
-
         # env = gym.make('f110_gym:f110-v0', map=map_conf.map_path, map_ext=map_conf.map_ext, num_agents=1)
         env.add_render_callback(env_utils.render_callback)
     else:
         # TODO: If random generation is on, generate random environment
         pass
     
-
     # obs, step_reward, done, info = env.reset(np.array([[map_conf.sx, map_conf.sy, map_conf.stheta]]))
-
 
     # Initialize the agent
     if il_config['policy_type']['agent']['model'] == 'mlp':
-        agent = AgentPolicyMLP(il_config['policy_type']['agent']['observation_shape'], \
-                                il_config['policy_type']['agent']['hidden_dim'], \
-                                2, \
-                                il_config['policy_type']['agent']['learning_rate'], \
-                                device)
+        agent = AgentPolicyMLP(observ_dim = il_config['policy_type']['agent']['observation_shape'],
+                               hidden_dim = il_config['policy_type']['agent']['hidden_dim'],
+                               action_dim = 2,
+                               lr = il_config['policy_type']['agent']['learning_rate'],
+                               device = device)
     else:
         #TODO: Implement other model (Transformer)
         pass
@@ -98,14 +90,13 @@ def train(seed, agent, expert, env, start_pose, observation_shape, downsampling_
 
 
 if __name__ == '__main__':
-    # Parse the command line arguments.
-    parsed_args = process_parsed_args()
-    
-    # Process the parsed arguments.
-    il_algo = parsed_args.algorithm
-    yaml_loc = parsed_args.training_config
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument('--algorithm', type=str, default='dagger', help='imitation learning algorithm to use')
+    arg_parser.add_argument('--training_config', type=str, required=True, help='the yaml file containing the training configuration')
+    parsed_args = arg_parser.parse_args()
 
-    il_config = yaml.load(open(yaml_loc), Loader=yaml.FullLoader)
+    il_algo = parsed_args.algorithm
+    il_config = yaml.load(open(parsed_args.training_config), Loader=yaml.FullLoader)
 
     # Initialize
     seed, agent, expert, env, start_pose, observation_shape, downsampling_method, render, render_mode = initialization(il_config)
