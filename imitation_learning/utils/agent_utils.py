@@ -30,7 +30,7 @@ def sample_traj(env, policy, start_pose, max_traj_len, observation_shape=108, do
 
 
     done = False
-    observ, step_reward, done, info = env.reset(start_pose)
+    observ, step_reward, done, info = env.reset(poses=start_pose)
 
     # Start rendering
     if render:

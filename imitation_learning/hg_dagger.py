@@ -49,7 +49,7 @@ def hg_dagger(seed, agent, expert, env, start_pose, observation_shape, downsampl
            'STDEV Reward': []}
 
     # Perform HG-DAgger
-    n_iter = 267    # Number of Epochs
+    n_iter = 10    # Number of Epochs 267
 
     n_rollout = 5
 
@@ -65,7 +65,8 @@ def hg_dagger(seed, agent, expert, env, start_pose, observation_shape, downsampl
             print("- "*15)
             # log["Iteration"].append(iter)
             mean_travelled_distances, stdev_travelled_distances, mean_reward, stdev_reward = agent_utils.eval(env, agent, start_pose, eval_max_traj_len, eval_batch_size, observation_shape, downsampling_method, render, render_mode)
-            
+            print("Start pose hg-dagger.py: ", start_pose)
+
             log['Mean Distance Travelled'].append(mean_travelled_distances)
             log['STDEV Distance Travelled'].append(stdev_travelled_distances)
             log['Mean Reward'].append(mean_reward)
@@ -112,7 +113,7 @@ def hg_dagger(seed, agent, expert, env, start_pose, observation_shape, downsampl
         else:
             # Reset environment
             done = False
-            observ, step_reward, done, info = env.reset(start_pose)
+            observ, step_reward, done, info = env.reset(poses=start_pose)
             # Start rendering
             if render:
                 if env.renderer is None:

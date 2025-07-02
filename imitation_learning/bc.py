@@ -118,7 +118,8 @@ def bc(seed, agent, expert, env, start_pose, observation_shape, downsampling_met
         print("Collecting data from the expert...")
         traj = {"observs": [], "poses_x": [], "poses_y": [], "poses_theta": [], "scans": [], "actions": [], "reward": 0}
         done = False
-        obs, step_reward, done, info = env.reset(resume_pose)
+        print("Start pose bc.py: ", resume_pose)
+        obs, step_reward, done, info = env.reset(poses=resume_pose)
 
         # Start rendering
         if render:

@@ -40,7 +40,11 @@ def initialization(il_config):
             with open(il_config['environment']['map_config_location']) as file:
                 map_conf_dict = yaml.load(file, Loader=yaml.FullLoader)
         map_conf = argparse.Namespace(**map_conf_dict)
-        env = gym.make('f110_gym:f110-v0', map=map_conf.map_path, map_ext=map_conf.map_ext, num_agents=1)
+
+        import f110_gym
+        env = gym.make('f110-v0', map=map_conf.map_path, map_ext=map_conf.map_ext, num_agents=1)
+
+        # env = gym.make('f110_gym:f110-v0', map=map_conf.map_path, map_ext=map_conf.map_ext, num_agents=1)
         env.add_render_callback(env_utils.render_callback)
     else:
         # TODO: If random generation is on, generate random environment
@@ -70,6 +74,7 @@ def initialization(il_config):
         pass
     
     start_pose = np.array([[map_conf.sx, map_conf.sy, map_conf.stheta]])
+    print("Start pose train.py: ", start_pose)
     # observation_gap = int(1080/il_config['policy_type']['agent']['observation_shape'])
     observation_shape = il_config['policy_type']['agent']['observation_shape']
     downsampling_method = il_config['policy_type']['agent']['downsample_method']
