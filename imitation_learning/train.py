@@ -16,6 +16,32 @@ from hg_dagger import hg_dagger
     
 
 def initialization(il_config):
+
+    """"
+    initialization function for the imitation learning training script.
+    It sets up the environment, agent, and expert based on the provided configuration.
+    Args:
+        il_config (dict): A dictionary containing the imitation learning configuration.
+    Returns:
+        seed (int): The random seed for reproducibility.
+        agent (AgentPolicyMLP): The agent policy initialized based on the configuration.
+        expert (ExpertWaypointFollower): The expert policy initialized based on the configuration.
+        env (gym.Env): The environment initialized based on the configuration.
+        start_pose (np.ndarray): The starting pose of the agent in the environment.
+        observation_shape (int): The shape of the observations used by the agent.
+        downsampling_method (str): The method used for downsampling observations.
+        render (bool): Whether to render the environment during training.
+        render_mode (str): The mode of rendering for the environment.
+    Raises:
+        ValueError: If the imitation learning algorithm specified in the configuration is not supported.
+    Raises:
+        FileNotFoundError: If the specified map configuration file does not exist.
+    Raises:
+        KeyError: If the configuration does not contain the required keys for agent or expert initialization.
+    
+    Two YAML files are required: algorithm config and environment config.
+    """
+
     seed = il_config['random_seed']
     # np.random.seed(seed)
     torch.manual_seed(seed)
@@ -96,7 +122,7 @@ if __name__ == '__main__':
     parsed_args = arg_parser.parse_args()
 
     il_algo = parsed_args.algorithm
-    il_config = yaml.load(open(parsed_args.training_config), Loader=yaml.FullLoader)
+    il_config = yaml.load(open(parsed_args.training_config), Loader=yaml.FullLoader)  # Load the YAML configuration file
 
     # Initialize
     seed, agent, expert, env, start_pose, observation_shape, downsampling_method, render, render_mode = initialization(il_config)
