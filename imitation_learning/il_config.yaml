@@ -9,8 +9,8 @@ environment:
 # Agent and expert policies
 policy_type:
   agent: 
-    downsample_method: simple
-    observation_shape: 1080
+    downsample_method: simple  # it selects a bunch of scan data points
+    observation_shape: 1080  # maximum number of scan points
     # TODO: downsample option for CNN and ViT
     model: mlp
     hidden_dim: 256
@@ -18,5 +18,4 @@ policy_type:
   # TODO: YAML config for Transformer 
   expert:
     behavior: waypoint_follower
-
 

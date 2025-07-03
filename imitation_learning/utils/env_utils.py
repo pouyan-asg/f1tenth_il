@@ -8,6 +8,11 @@ def render_callback(env_renderer):
     - Moves the score label to just above the car.
     - Adjusts the camera view (e.left, e.right, e.top, e.bottom) so 
         the car stays centered, with a margin of 800 units on each side.
+
+    Note:
+    standard Gym or Gymnasium environments do not require an add_render_callback method;
+    this is not part of the official Gym API.
+    This environment (f110-v0) is a custom environment for autonomous racing (F1TENTH).
     """
 
     e = env_renderer

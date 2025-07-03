@@ -144,7 +144,15 @@ def get_actuation(pose_theta, lookahead_point, position, lookahead_distance, whe
 
 class PurePursuitPlanner:
     """
-    Example Planner
+    The objective is to provide a path-following controller for autonomous vehicles 
+    (like the F1TENTH car) using the Pure Pursuit algorithm.
+    
+    It:
+    - Loads a sequence of waypoints that define the desired path.
+    - At each time step, computes a lookahead point on the path ahead of the vehicle.
+    - Calculates the required steering angle and speed for the vehicle to follow the path 
+        smoothly, based on its current position, orientation, and the lookahead point.
+    - Returns these control commands (speed, steering) to drive the vehicle along the waypoints.
     """
     def __init__(self, conf, wb):
         self.wheelbase = wb
@@ -203,6 +211,17 @@ class PurePursuitPlanner:
     def plan(self, pose_x, pose_y, pose_theta, lookahead_distance, vgain):
         """
         gives actuation given observation
+
+        pose_x: x position of the car
+        pose_y: y position of the car
+        pose_theta: orientation of the car in radians
+        lookahead_distance: distance to look ahead for the next waypoint
+            Controls how far ahead (in meters) on the path the 
+            Pure Pursuit controller "looks" to select the next 
+            waypoint to follow. A larger tlad means the car will 
+            look further ahead, resulting in smoother but less 
+            precise turns and vice versa.
+        vgain: velocity gain to scale the speed
         """
         position = np.array([pose_x, pose_y])
         lookahead_point = self._get_current_waypoint(self.waypoints, lookahead_distance, position, pose_theta)
@@ -245,8 +264,6 @@ class PurePursuitPlanner:
         # Change top speed to 7m/s
         # speed = speed * 0.875
 
-        
-
 
         # For sim
         # Low speed
@@ -254,7 +271,6 @@ class PurePursuitPlanner:
 
         # High speed
         # speed = speed * 1.25
-
 
         return speed, steering_angle
 

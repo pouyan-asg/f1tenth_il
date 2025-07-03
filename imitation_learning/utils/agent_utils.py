@@ -12,12 +12,12 @@ def downsample_and_extract_lidar(observ, observation_shape, downsampling_method)
     """
     Downsamples the lidar data and extracts the relevant features.
     """
-    # print("observ: ", observ)
     lidar_scan = observ["scans"][0]
     processed_lidar_scan = downsampling.downsample(lidar_scan, observation_shape, downsampling_method)
     return processed_lidar_scan
 
-def sample_traj(env, policy, start_pose, max_traj_len, observation_shape=108, downsampling_method="simple", render=True, render_mode="human_fast", for_eval=False):
+
+def sample_eval_traj(env, policy, start_pose, max_traj_len, observation_shape=108, downsampling_method="simple", render=True, render_mode="human_fast", for_eval=False):
     """
     Samples a trajectory of at most `max_traj_len` timesteps by executing a policy.
     """
@@ -27,7 +27,6 @@ def sample_traj(env, policy, start_pose, max_traj_len, observation_shape=108, do
         traj = {"observs": [], "poses_x": [], "poses_y": [], "poses_theta": [], "scans": [], "actions": [], "reward": 0, "travelled_distance": 0}
     else:
         traj = {"observs": [], "poses_x": [], "poses_y": [], "poses_theta": [], "scans": [], "actions": [], "reward": 0}
-
 
     done = False
     observ, step_reward, done, info = env.reset(poses=start_pose)
@@ -85,43 +84,54 @@ def sample_traj(env, policy, start_pose, max_traj_len, observation_shape=108, do
     
     return traj
 
+
 def sample_trajs(env, policy, start_pose, max_traj_len, n_trajs, observation_shape, downsampling_method, render, render_mode, for_eval=False):
     """
     Samples `n_trajs` trajectories by repeatedly calling sample_traj().
     """
     if for_eval:
-        data = {"observs":[], "poses_x": [], "poses_y": [], "poses_theta": [], "scans": [], "actions":[], "rewards":[], "travelled_distances": []}
+        eval_data = {"observs":[], "poses_x": [], "poses_y": [], "poses_theta": [], "scans": [], "actions":[], "rewards":[], "travelled_distances": []}
     else:
-        data = {"observs":[], "poses_x": [], "poses_y": [], "poses_theta": [], "scans": [], "actions":[], "rewards":[]}
+        eval_data = {"observs":[], "poses_x": [], "poses_y": [], "poses_theta": [], "scans": [], "actions":[], "rewards":[]}
 
     for _ in range(n_trajs):
-        traj = sample_traj(env, policy, start_pose, max_traj_len, observation_shape, downsampling_method, render, render_mode, for_eval)
-        data["observs"].append(traj["observs"])
-        data["poses_x"].append(traj["poses_x"])
-        data["poses_y"].append(traj["poses_y"])
-        data["poses_theta"].append(traj["poses_theta"])
-        data["scans"].append(traj["scans"])
-        data["actions"].append(traj["actions"])
-        data["rewards"].append(traj["reward"])
+        traj = sample_eval_traj(env, policy, start_pose, max_traj_len, observation_shape, downsampling_method, render, render_mode, for_eval)
+        eval_data["observs"].append(traj["observs"])
+        eval_data["poses_x"].append(traj["poses_x"])
+        eval_data["poses_y"].append(traj["poses_y"])
+        eval_data["poses_theta"].append(traj["poses_theta"])
+        eval_data["scans"].append(traj["scans"])
+        eval_data["actions"].append(traj["actions"])
+        eval_data["rewards"].append(traj["reward"])
 
         if for_eval:
-            data["travelled_distances"].append(traj["travelled_distance"])
+            eval_data["travelled_distances"].append(traj["travelled_distance"])
 
-    data["observs"] = np.concatenate(data["observs"])
-    data["poses_x"] = np.concatenate(data["poses_x"])
-    data["poses_y"] = np.concatenate(data["poses_y"])
-    data["poses_theta"] = np.concatenate(data["poses_theta"])
-    data["scans"] = np.concatenate(data["scans"])
-    data["actions"] = np.concatenate(data["actions"])
-    data["rewards"] = np.array(data["rewards"])
-    data["travelled_distances"] = np.array(data["travelled_distances"])
-    return data
+    eval_data["observs"] = np.concatenate(eval_data["observs"])
+    eval_data["poses_x"] = np.concatenate(eval_data["poses_x"])
+    eval_data["poses_y"] = np.concatenate(eval_data["poses_y"])
+    eval_data["poses_theta"] = np.concatenate(eval_data["poses_theta"])
+    eval_data["scans"] = np.concatenate(eval_data["scans"])
+    eval_data["actions"] = np.concatenate(eval_data["actions"])
+    eval_data["rewards"] = np.array(eval_data["rewards"])
+    eval_data["travelled_distances"] = np.array(eval_data["travelled_distances"])
+    return eval_data
+
 
 def eval(env, policy, start_pose, max_traj_len, eval_batch_size, observation_shape, downsampling_method, render, render_mode):
     """
     Evaluates the performance of a policy over `eval_batch_size` trajectories.
     """
-    eval_res = sample_trajs(env, policy, start_pose, max_traj_len, eval_batch_size, observation_shape, downsampling_method, render, render_mode, for_eval=True)
+    eval_res = sample_trajs(env, 
+                            policy, 
+                            start_pose, 
+                            max_traj_len, 
+                            eval_batch_size, 
+                            observation_shape, 
+                            downsampling_method, 
+                            render, 
+                            render_mode, 
+                            for_eval=True)
 
     rewards = eval_res["rewards"]
     travelled_distances = eval_res["travelled_distances"]
@@ -135,6 +145,9 @@ def make_log(log, filename):
 
 
 def save_log_and_model(log, agent, algo_name):
+    """
+    Save final log and model to disk.
+    """
     path = "logs/{}".format(algo_name)
     os.makedirs(os.path.dirname(path), exist_ok=True)
 

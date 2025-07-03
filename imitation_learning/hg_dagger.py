@@ -2,22 +2,30 @@ from mimetypes import init
 import gym
 import torch
 import numpy as np
-
 import utils.agent_utils as agent_utils
 import utils.expert_utils as expert_utils
 import utils.env_utils as env_utils
-
 from dataset import Dataset
-
 from bc import bc
 from pathlib import Path
 
-def hg_dagger(seed, agent, expert, env, start_pose, observation_shape, downsampling_method, render, render_mode):
-    algo_name = "HGDAgger"
-    best_model = agent
-    longest_distance_travelled = 0
 
+def hg_dagger(seed, learner_agent, expert, env, start_pose, observation_shape, downsampling_method, render, render_mode):
+    """
+    learner_agent: a NN which is trained to imitate the expert
+    expert: a PurePursuit expert which is used to provide expert actions
+    env: the gym environment in which the agent is trained
+    """
+    
+    algo_name = "HGDAgger"
+    best_model = learner_agent
+    longest_distance_travelled = 0
     num_of_expert_queries = 0
+    init_traj_len = 50
+    max_traj_len = 3500  # nummber of steps in teh environment for collecting data (trajectories)
+    n_batch_updates_per_iter = 1000  # Number of training loop per iteration
+    eval_max_traj_len = 10000  # number of agent evaluation time internally 
+    train_batch_size = 64  # sample batch size for training the agent
 
     # For Sim2Real
     path = "logs/{}".format(algo_name)
@@ -26,15 +34,7 @@ def hg_dagger(seed, agent, expert, env, start_pose, observation_shape, downsampl
     if render:
         eval_batch_size = 1
     else:
-        eval_batch_size = 10
-
-    init_traj_len = 50
-    max_traj_len = 3500
-    n_batch_updates_per_iter = 1000
-    
-    eval_max_traj_len = 10000
-
-    train_batch_size = 64
+        eval_batch_size = 10  # Number of evaluation iteration loops
 
     # np.random.seed(seed)
     torch.manual_seed(seed)
@@ -48,24 +48,40 @@ def hg_dagger(seed, agent, expert, env, start_pose, observation_shape, downsampl
            'Mean Reward': [],
            'STDEV Reward': []}
 
-    # Perform HG-DAgger
     n_iter = 10    # Number of Epochs 267
 
     n_rollout = 5
 
-    tlad = 0.82461887897713965
-    vgain = 0.90338203837889
+    tlad = 0.82461887897713965  # Lookahead distance for PurePursuit expert
+    vgain = 0.90338203837889  # Velocity gain for PurePursuit expert
 
     # Epochs
     for iter in range(n_iter + 1):
+        """
+        the loop runs for 'n_iter' times in which for each iteration (epoch) 
+        'max_traj_len' data is collected and also 'n_batch_updates_per_iter'
+        times the agent is trained on the collected data.
+        """
         print("-"*30 + ("\ninitial:" if iter == 0 else "\niter {}:".format(iter)))
+
         # Evaluation
         if iter > 0:
             print("Evaluating agent...")
             print("- "*15)
+
             # log["Iteration"].append(iter)
-            mean_travelled_distances, stdev_travelled_distances, mean_reward, stdev_reward = agent_utils.eval(env, agent, start_pose, eval_max_traj_len, eval_batch_size, observation_shape, downsampling_method, render, render_mode)
-            print("Start pose hg-dagger.py: ", start_pose)
+            mean_travelled_distances, \
+            stdev_travelled_distances, \
+            mean_reward, \
+            stdev_reward = agent_utils.eval(env, 
+                                            learner_agent, 
+                                            start_pose, 
+                                            eval_max_traj_len, 
+                                            eval_batch_size, 
+                                            observation_shape, 
+                                            downsampling_method, 
+                                            render, 
+                                            render_mode)
 
             log['Mean Distance Travelled'].append(mean_travelled_distances)
             log['STDEV Distance Travelled'].append(stdev_travelled_distances)
@@ -75,51 +91,47 @@ def hg_dagger(seed, agent, expert, env, start_pose, observation_shape, downsampl
             # Replace the best model if the current model is better
             if (log['Mean Distance Travelled'][-1] > longest_distance_travelled):
                 longest_distance_travelled = log['Mean Distance Travelled'][-1]
-                best_model = agent
+                best_model = learner_agent
 
-
-            # For Sim2Real
+            # saving checkpoints with a minimum ctiteria (distance travelled > 100)
             if (log['Mean Distance Travelled'][-1] > 100):
                 curr_dist = log['Mean Distance Travelled'][-1]
                 current_expsamples = log['Number of Expert Queries'][-1]
                 model_path = Path(path + f'/{algo_name}_svidx_{str(num_of_saved_models)}_dist_{int(curr_dist)}_expsamp_{int(current_expsamples)}.pkl')
                 model_path.parent.mkdir(parents=True, exist_ok=True) 
-                torch.save(agent.state_dict(), model_path)
+                torch.save(learner_agent.state_dict(), model_path)
                 num_of_saved_models += 1
-
-        
 
             print("Number of Samples: {}".format(log['Number of Samples'][-1]))
             print("Number of Expert Queries: {}".format(log['Number of Expert Queries'][-1]))
             print("Distance Travelled: {} (+/- {})".format(log['Mean Distance Travelled'][-1], log['STDEV Distance Travelled'][-1]))
             print("Reward: {} (+/- {})".format(log['Mean Reward'][-1], log['STDEV Reward'][-1]))
-
             print("- "*15)
-
 
             # DELETE IT WHEN DOING SIM2REAL
             # if log['Number of Expert Queries'][-1] > 3000:
             #     break
-
-
         
         if iter == n_iter:
             break
 
-        
         if iter == 0:
-            # Bootstrap using BC
-            agent, log, dataset = bc(seed, agent, expert, env, start_pose, observation_shape, downsampling_method, render, render_mode, purpose='bootstrap')
+            # Bootstrap using BC for first 500 samples
+            learner_agent, log, dataset = bc(seed, learner_agent, expert, env, start_pose, observation_shape, downsampling_method, render, render_mode, purpose='bootstrap')
         else:
             # Reset environment
             done = False
             observ, step_reward, done, info = env.reset(poses=start_pose)
+
             # Start rendering
             if render:
                 if env.renderer is None:
                     env.render()
+
             # Timestep of rollout
-            traj = {"observs": [], "poses_x": [], "poses_y": [], "poses_theta": [], "scans": [], "actions": [], "reward": 0}
+            traj = {"observs": [], "poses_x": [], "poses_y": [], 
+                    "poses_theta": [], "scans": [], "actions": [], "reward": 0}
+            
             for _ in range(max_traj_len):    
                 # Extract useful observations
                 raw_lidar_scan = observ["scans"][0]
@@ -131,21 +143,25 @@ def hg_dagger(seed, agent, expert, env, start_pose, observation_shape, downsampl
 
                 linear_vels_x = observ["linear_vels_x"][0]
 
-               
                 poses_x = observ["poses_x"][0]
                 poses_y = observ["poses_y"][0]
                 poses_theta = observ["poses_theta"][0]
-                curr_expert_speed, curr_expert_steer = expert.plan(poses_x, poses_y, poses_theta, tlad, vgain)
+
+                # Expert's action regarding current pose (synthetic query)
+                curr_expert_speed, curr_expert_steer = expert.plan(poses_x, 
+                                                                   poses_y, 
+                                                                   poses_theta, 
+                                                                   tlad, 
+                                                                   vgain)
                 
                 expert_action = np.array([[curr_expert_steer, curr_expert_speed]])
-                agent_action_raw = agent.get_action(downsampled_scan)
-                agent_action = np.expand_dims(agent_action_raw, axis=0)
 
+                agent_action_raw = learner_agent.get_action(downsampled_scan)
                 curr_agent_steer = agent_action_raw[0]
                 curr_agent_speed = agent_action_raw[1]
+                agent_action = np.expand_dims(agent_action_raw, axis=0)
 
-
-                # Decide if agent or expert has control
+                # Decide if learner(agent) or expert has control
                 if (np.abs(curr_agent_steer - curr_expert_steer) > 0.1) or (np.abs(curr_agent_speed - curr_expert_speed) > 1):
                     """
                     poses_x = observ["poses_x"][0]
@@ -196,6 +212,6 @@ def hg_dagger(seed, agent, expert, env, start_pose, observation_shape, downsampl
             print("Training agent...")
             for _ in range(n_batch_updates_per_iter):
                 train_batch = dataset.sample(train_batch_size)
-                agent.train(train_batch["scans"], train_batch["actions"])
+                learner_agent.train(train_batch["scans"], train_batch["actions"])
     
     agent_utils.save_log_and_model(log, best_model, algo_name)
