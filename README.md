@@ -48,12 +48,12 @@ cd imitation_learning
 
 Execute the training script
 ```bash
-python train.py --algorithm=<algorithm name> --training_config=<yaml file location>
+python train.py --algo=<algorithm name> --config=<yaml file location>
 ```
 
 Example:
 ```bash
-python train.py --algorithm=hg-dagger --training_config=il_config.yaml
+python train.py --algo=hg-dagger --config=il_config.yaml
 ```
 
 
