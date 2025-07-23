@@ -123,6 +123,15 @@ def hg_dagger(seed, learner_agent, expert, env, start_pose, observation_shape, d
             done = False
             observ, step_reward, done, info = env.reset(poses=start_pose)
 
+            """
+            observation:
+                {'ego_idx': 0, 'scans': [array([])], 'poses_x': [], 'poses_y': [], 'poses_theta': [], 
+                'linear_vels_x': [], 'linear_vels_y': [], 'ang_vels_z': [], 'collisions': array([]), 
+                'lap_times': array([]), 'lap_counts': array([])}
+            reward = 0.01
+            info: {'checkpoint_done': array([False])}
+            """
+
             # Start rendering
             if render:
                 if env.renderer is None:

@@ -147,6 +147,10 @@ if __name__ == '__main__':
         file.write(f"Downsampling Method: {downsampling_method}\n")
         file.write(f"Render: {render}\n")
         file.write(f"Render Mode: {render_mode}\n")
+        # file.write(f"Env action space: {env.action_space}\n")
+        # file.write(f"Env observation space: {env.observation_space}\n")
+        file.write(f"Env reward: {env.reward_range}\n")
+        file.write(f"Env meta data: {env.metadata}\n")
 
     # Train
     train(seed, learner_agent, expert, env, start_pose, observation_shape, downsampling_method, render, render_mode)
